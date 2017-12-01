@@ -1,5 +1,6 @@
 # ArduinoCPO
 Arduino Based Code Practice system; A scale-able project made from smaller building blocks
+For an overview, see YouTube video found at: https://youtu.be/U1LHWX86INQ
 This project currently contains three separate Arduino sketches:
 
 CWfftToneDecoder
@@ -27,6 +28,8 @@ LCD drivers. These sites are often vague about what chip set they are using. Do 
 The TFT-LCD library used in the "Morse_Decoder_Leonardo" (Nov 30, 2017) can be found here:
 https://github.com/prenticedavid/MCUFRIEND_kbv
 Curiously at the time I installed it, I had to “uncomment” a line in its header file before it would recognize the the TFT shield spec'd above.
+
+Also Its not Mentioned in the video. But FWIW the CWfftToneDecoder sketch also contains a rudimentary CW (fixed at 18 WPM). So it by itself (plus the Arduino's IDE/Serial Monitor) can display ARRL code bulletins 
 
  
 
