@@ -5,11 +5,11 @@ For an overview, see YouTube video found at: https://youtu.be/U1LHWX86INQ
 
 This project currently contains three separate Arduino sketches:
 
-CWfftToneDecoder
-
 cwKeyInterface
 
 Morse_Decoder_Leonardo
+
+CWfftToneDecoder
 
 A Fourth folder "FHT_128_channel_analyzer" is included here (for convenience)
 It is copy of a "Processing" sketch that can be found elsewhere on the net.
