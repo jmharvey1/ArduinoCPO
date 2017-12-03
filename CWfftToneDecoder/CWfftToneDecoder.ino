@@ -174,8 +174,8 @@ void loop() {
     int oldLfreqVal=0;
     int oldMfreqVal=0;
     int oldHfreqVal=0;
-    int noise = fft_log_out[12];
-     noise = (noise+ fft_log_out[13])/2;
+    int noise = fft_log_out[6];//fft_log_out[12];
+     noise = (noise+ fft_log_out[9])/2;//(noise+ fft_log_out[13])/2;
     for(int i = 0 ; i<sampleSize; ++i){
       curLfreqVal = curLfreqVal+last[i*3];
       //Serial.print("; Cur:");
@@ -265,7 +265,7 @@ void loop() {
      digitalWrite(DataOutPin, HIGH);
    }
    
-   if( curSigLvl>longAvgLvl+70)armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
+   if( curSigLvl>longAvgLvl+65) armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
    else armHi = false;
    
    if(totSlope<loTrgVal)armLo = true; //& curSigLvl<longAvgLvl+35
@@ -283,7 +283,7 @@ void loop() {
 //   }
 ////////////////////////////////////////////////////////////   
   fft_log_out[120]= curSigLvl;
-  fft_log_out[121]= longAvgLvl+70;
+  fft_log_out[121]= longAvgLvl+65;
   fft_log_out[122]= 0;//avgLowVal+128;
   fft_log_out[123]= loTrgVal+128;
   fft_log_out[124]= totSlope+128;
