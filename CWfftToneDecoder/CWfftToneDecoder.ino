@@ -31,7 +31,7 @@ int halfSmplCnt;
 int longAvgLvl = 0;
 int hiTrgVal = 70;
 int loTrgVal = -70;
-int SqlchVal = 15;
+int SqlchVal = 9;
 int last[18];
 //int lastHigh =0;
 //int lastLow =0;
@@ -159,9 +159,6 @@ void loop() {
     for(int i = 0 ; i<15; ++i){//shift old data one level down
       last[17-i] = last[14-i];
     }
-//    for(int i = 7 ; i<10; ++i){//range of this "for" loop sets the frequency passband that the detector will respond to
-//            last[i-7] = fft_log_out[i];
-//    }//end for loop.
     last[0] = fft_log_out[7];
     last[1] = fft_log_out[8];
     last[2] = fft_log_out[9];
@@ -171,6 +168,7 @@ void loop() {
     int oldLfreqVal=0;
     int oldMfreqVal=0;
     int oldHfreqVal=0;
+
     int noise = fft_log_out[6];//fft_log_out[12];
     //noise = (noise+ fft_log_out[10])/2;//(noise+ fft_log_out[13])/2;
     if(noise < fft_log_out[10]) noise = fft_log_out[10];
@@ -209,7 +207,10 @@ void loop() {
     
     int curSigLvl = (curLfreqVal+curMfreqVal+curHfreqVal)/3;
     if(noise> longAvgLvl) longAvgLvl = noise;
-    else longAvgLvl = (20*longAvgLvl-(noise/20))/20;//else longAvgLvl = (40*longAvgLvl+noise)/41;
+    else if(curSigLvl>SqlchVal+longAvgLvl){
+      longAvgLvl = curSigLvl-(SqlchVal+5);
+    }
+    else  longAvgLvl = (20*longAvgLvl-(noise/20))/20;//else longAvgLvl = (40*longAvgLvl+noise)/41;
 //    if(curSigLvl> avgLvlVal) avgLvlVal = curSigLvl; 
 //    else avgLvlVal = (3*avgLvlVal+curSigLvl )/4;
     //avgLvlVal = (7*avgLvlVal+curSigLvl+curSigLvl )/8;
@@ -222,19 +223,19 @@ void loop() {
   loTrgVal = -8;//-12;//-10
 ////////////////////////////////////////////////////////////
 
-   if( curSigLvl>longAvgLvl+SqlchVal) armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
-   else armHi = false;
-   if(totSlope<loTrgVal)armLo = true; //& curSigLvl<longAvgLvl+35
-   else armLo = false;
+//   if( curSigLvl>longAvgLvl+SqlchVal) armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
+//   else armHi = false;
+//   if(totSlope<loTrgVal)armLo = true; //& curSigLvl<longAvgLvl+35
+//   else armLo = false;
 
-//if( curSigLvl>longAvgLvl+SqlchVal){
-//    armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
-//    armLo = false;
-//   }
-//   else{
-//    armHi = false;
-//    armLo = true;
-//   }
+if( curSigLvl>longAvgLvl+SqlchVal){
+    armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
+    armLo = false;
+   }
+   else{
+    armHi = false;
+    armLo = true;
+   }
 
 
 
@@ -263,7 +264,7 @@ void loop() {
 //Use For Slow code [<27WPM] fill in the glitches
     if(((delayLine ^ B00001110) == 4 )|| ((delayLine ^ B00001111) == 4)) delayLine |= B00000100;
     if(((delayLine ^ B00000001) == B00000100) || ((delayLine ^ B00000000) == B00000100)) delayLine &= B11111011;
-       
+      
   if(delayLine & B00001000){
      digitalWrite(DataOutPin, LOW);
   }else{
