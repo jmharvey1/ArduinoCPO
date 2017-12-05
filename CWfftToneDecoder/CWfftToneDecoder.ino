@@ -31,7 +31,7 @@ int halfSmplCnt;
 int longAvgLvl = 0;
 int hiTrgVal = 70;
 int loTrgVal = -70;
-int SqlchVal = 25;
+int SqlchVal = 10;
 int last[18];
 //int lastHigh =0;
 //int lastLow =0;
@@ -172,7 +172,9 @@ void loop() {
     int oldMfreqVal=0;
     int oldHfreqVal=0;
     int noise = fft_log_out[6];//fft_log_out[12];
-     noise = (noise+ fft_log_out[10])/2;//(noise+ fft_log_out[13])/2;
+    //noise = (noise+ fft_log_out[10])/2;//(noise+ fft_log_out[13])/2;
+    if(noise < fft_log_out[10]) noise = fft_log_out[10];
+        
     for(int i = 0 ; i<sampleSize; ++i){
       curLfreqVal = curLfreqVal+last[i*3];
       //Serial.print("; Cur:");
