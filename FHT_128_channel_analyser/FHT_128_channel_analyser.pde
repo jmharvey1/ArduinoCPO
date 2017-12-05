@@ -1,4 +1,6 @@
 /*  FHT_128_channel_analyser.pde
+   (Modified from original sketch, referenced below, & adapted to better view
+    the 64 channels used in the Arduino CWfftToneDecoderR1 sketch - KW4KD 20171205)
 
     an open-source display for spectrum analyser
     Copyright (C) 2013  Jürgen Rimmelspacher
@@ -22,10 +24,10 @@
 final int X_OFFSET  =  40;                     // x-distance to left upper corner of window
 final int Y_OFFSET  =  60;                     // y-distance to left upper corner of window
 final int BOT_DIST  =  80;                     // distance to bottom line of window
-final int COL_WIDTH =   4;                     // column widt
+final int COL_WIDTH =   8;                     // column widt
 final int Y_DIST    =  64;                     // distance horizontal lines
-final int X_DIST    =   5;                     // distance vertical lines
-final int X_MAX     = (128+1)*X_DIST+1;        // x-axis lenght (854)
+final int X_DIST    =   10;                     // distance vertical lines
+final int X_MAX     = (64+1)*X_DIST+1;        // x-axis lenght (854)
 final int Y_MAX     = 256;                     // y-axis lenght
 final int X_WINDOW  = X_MAX + 2*X_OFFSET;      // window width
 final int Y_WINDOW  = Y_MAX+BOT_DIST+Y_OFFSET; // window height
@@ -35,7 +37,7 @@ color graphColor = color(25, 25, 250);
 PFont fontGraph;
 import processing.serial.*;
 Serial port;
-int[] inBuffer = new int[128];
+int[] inBuffer = new int[64];
 
 void draw_grid()                               // draw grid an title
 { 
@@ -64,7 +66,7 @@ void draw_grid()                               // draw grid an title
   }
   textFont(fontA, 32);
   fill(graphColor); 
-  text("128-Channel Spectrum Analyser", 215, 40);
+  text("64-Channel Spectrum Analyser", 215, 40);
   textFont(fontA, 16);
   text("magnitude", 7, 20);  
   text("(8bit-value)", 7, 40);  
@@ -100,7 +102,7 @@ void draw()
 
   draw_grid();
 
-  for (int i=0; i<128; i++)
+  for (int i=0; i<64; i++)
   { 
     fill(graphColor);
     rect(i*X_DIST+X_OFFSET+X_DIST-COL_WIDTH/2, height-BOT_DIST, COL_WIDTH, -inBuffer[i]);

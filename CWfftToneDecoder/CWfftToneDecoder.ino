@@ -10,40 +10,35 @@ visualizing the data.
 
 /*
  * This Sketch was originally written to run on an SS Micro.
- * Its purpose is to use the Micro as CW tone detector 
- * the digital output of the sketch (SS Micro Digital Pin 11) is intended to act as an input  
+ * Its purpose is to use the Micro as audio tone detector for CW signals 
+ * the digital output of this sketch (SS Micro Digital Pin 11) is intended to act as an input  
  * to drive a companion Arduino CW decoder
+ * In its present form, it optumized for tones around 600Hz.
  */
 
 
 #define LOG_OUT 1 // use the log output function
-#define FFT_N 128//256 // set to 256 point fft
+#define FFT_N 128     //128//256 // set to 256 point fft
 #define DataOutPin 11
 #define GainPin 9
 
 #include <FFT.h> // include the library
-//unsigned long start;
-//unsigned long now;
-//int loopcnt = 0;
 int dblSmplCnt;
 int halfSmplCnt;
-int avgLowVal =70;
-int avgHighVal =-70;
-int avgLvlVal = 0;
+//int avgLowVal =70;
+//int avgHighVal =-70;
+//int avgLvlVal = 0;
 int longAvgLvl = 0;
 int hiTrgVal = 70;
 int loTrgVal = -70;
-//int Trglvl = 70;
-//int noiseLvl;
+int SqlchVal = 25;
 int last[18];
-int lastHigh =0;
-int lastLow =0;
+//int lastHigh =0;
+//int lastLow =0;
 int lastSlopeVal=0;
-bool look4High = true;
+//bool look4High = true;
 byte delayLine = 0;
 bool shift = false;
-//unsigned long avgNoiseFloor = sigTrgrVal;
-//int sigStCnt = 0;
 bool armHi = false;
 bool armLo = false;
 bool gotLtr = false;
@@ -67,7 +62,6 @@ char morseTbl[]={
 
 void setup() {
   //setup Digital signal output pin
-  //now =0;  
   pinMode(DataOutPin, OUTPUT);
   digitalWrite(DataOutPin, HIGH);
   //setup Gain Control Pin
@@ -165,9 +159,12 @@ void loop() {
     for(int i = 0 ; i<15; ++i){//shift old data one level down
       last[17-i] = last[14-i];
     }
-    for(int i = 7 ; i<10; ++i){//range of this "for" loop sets the frequency passband that the detector will respond to
-            last[i-7] = fft_log_out[i];
-    }//end for loop.
+//    for(int i = 7 ; i<10; ++i){//range of this "for" loop sets the frequency passband that the detector will respond to
+//            last[i-7] = fft_log_out[i];
+//    }//end for loop.
+    last[0] = fft_log_out[7];
+    last[1] = fft_log_out[8];
+    last[2] = fft_log_out[9];
     int curLfreqVal=0;
     int curMfreqVal=0;
     int curHfreqVal=0;
@@ -175,7 +172,7 @@ void loop() {
     int oldMfreqVal=0;
     int oldHfreqVal=0;
     int noise = fft_log_out[6];//fft_log_out[12];
-     noise = (noise+ fft_log_out[9])/2;//(noise+ fft_log_out[13])/2;
+     noise = (noise+ fft_log_out[10])/2;//(noise+ fft_log_out[13])/2;
     for(int i = 0 ; i<sampleSize; ++i){
       curLfreqVal = curLfreqVal+last[i*3];
       //Serial.print("; Cur:");
@@ -201,18 +198,18 @@ void loop() {
     int hSlope = curHfreqVal - oldHfreqVal;
   
      
-    int totSlope = (lSlope+mSlope+hSlope +lastSlopeVal)/2;
+    int totSlope = (lSlope+mSlope+hSlope +lastSlopeVal)/3;
     lastSlopeVal = totSlope;
 //    if(totSlope>0) avgHighVal = (19*avgHighVal+totSlope)/20;
 //    else avgLowVal = (19*avgLowVal+totSlope)/20;
-    if(totSlope>0) avgHighVal = (5*avgHighVal+totSlope)/6;
-    else avgLowVal = (5*avgLowVal+totSlope)/6;
+//    if(totSlope>0) avgHighVal = (5*avgHighVal+totSlope)/6;
+//    else avgLowVal = (5*avgLowVal+totSlope)/6;
     
-    int curSigLvl = (curLfreqVal+curMfreqVal+curHfreqVal)/2;
+    int curSigLvl = (curLfreqVal+curMfreqVal+curHfreqVal)/3;
     if(noise> longAvgLvl) longAvgLvl = noise;
-    else longAvgLvl = (25*longAvgLvl+noise)/26;//else longAvgLvl = (40*longAvgLvl+noise)/41;
-    if(curSigLvl> avgLvlVal) avgLvlVal = curSigLvl; 
-    else avgLvlVal = (3*avgLvlVal+curSigLvl )/4;
+    else longAvgLvl = (20*longAvgLvl-(noise/20))/20;//else longAvgLvl = (40*longAvgLvl+noise)/41;
+//    if(curSigLvl> avgLvlVal) avgLvlVal = curSigLvl; 
+//    else avgLvlVal = (3*avgLvlVal+curSigLvl )/4;
     //avgLvlVal = (7*avgLvlVal+curSigLvl+curSigLvl )/8;
   
 //    if(avgHighVal > 50) hiTrgVal = avgHighVal-15;
@@ -223,23 +220,27 @@ void loop() {
   loTrgVal = -12;//-10
 ////////////////////////////////////////////////////////////
 
-   if(armHi){//if(armHi & totSlope>0){
-     //digitalWrite(DataOutPin, LOW);
-     toneDetect = true;
-     look4High = false;
-//     Serial.print("*");
-     
-   }else armHi = false;
+   if( curSigLvl>longAvgLvl+SqlchVal) armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
+   else armHi = false;
+   if(totSlope<loTrgVal)armLo = true; //& curSigLvl<longAvgLvl+35
+   else armLo = false;
 
-   if(armLo){//if(armLo & totSlope<2){
-     //digitalWrite(DataOutPin, HIGH);
-     toneDetect = false;
-     look4High = true;
-//     Serial.print("*");
-   }else armLo = false;
+//if( curSigLvl>longAvgLvl+SqlchVal){
+//    armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
+//    armLo = false;
+//   }
+//   else{
+//    armHi = false;
+//    armLo = true;
+//   }
 
 
-   
+
+   if(armLo) toneDetect = false;
+//   else armLo = false;
+
+   if(armHi) toneDetect = true;
+//   else armHi = false;
 
     delayLine= delayLine<<1;
     delayLine &= B00001110;
@@ -256,6 +257,8 @@ void loop() {
 //    Serial.print(";  ");
 //    Serial.println(delayLine &= B11111011);
 //    }
+
+//Use For Slow code [<27WPM] fill in the glitches
     if(((delayLine ^ B00001110) == 4 )|| ((delayLine ^ B00001111) == 4)) delayLine |= B00000100;
     if(((delayLine ^ B00000001) == B00000100) || ((delayLine ^ B00000000) == B00000100)) delayLine &= B11111011;
        
@@ -264,35 +267,20 @@ void loop() {
   }else{
      digitalWrite(DataOutPin, HIGH);
    }
-   
-   if( curSigLvl>longAvgLvl+65) armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
-   else armHi = false;
-   
-   if(totSlope<loTrgVal)armLo = true; //& curSigLvl<longAvgLvl+35
-   else armLo = false;
-//////////////////////////////////////////////////////////
-//   if(totSlope>hiTrgVal){
-//     digitalWrite(DataOutPin, LOW);
-//     look4High = false;
-//     Serial.print("+++");
-//   }
-//   if(totSlope<loTrgVal){
-//     digitalWrite(DataOutPin, HIGH);
-//     look4High = true;
-//     Serial.print("-");
-//   }
-////////////////////////////////////////////////////////////   
-  fft_log_out[120]= curSigLvl;
-  fft_log_out[121]= longAvgLvl+65;
-  fft_log_out[122]= 0;//avgLowVal+128;
-  fft_log_out[123]= loTrgVal+128;
-  fft_log_out[124]= totSlope+128;
-  //fft_log_out[125]= lSlope+128;
-  //fft_log_out[126]= mSlope+128;
-  //fft_log_out[127]= hSlope+128;
-  //Serial.write(255); // send a start byte
-  //Serial.write(fft_log_out, FFT_N); // send out the data
-  if(!look4High){
+//  if( curSigLvl>longAvgLvl+SqlchVal) armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
+//  else armHi = false;
+//   
+//  if(totSlope<loTrgVal)armLo = true; //& curSigLvl<longAvgLvl+35
+//  else armLo = false;
+
+
+  fft_log_out[halfSmplCnt-6]= 0; 
+  fft_log_out[halfSmplCnt-5]= curSigLvl;
+  fft_log_out[halfSmplCnt-4]= longAvgLvl+SqlchVal;
+  fft_log_out[halfSmplCnt-3]= 0;//avgLowVal+128;
+  fft_log_out[halfSmplCnt-2]= loTrgVal+128;
+  fft_log_out[halfSmplCnt-1]= totSlope+128;
+  if(toneDetect){
 //    Serial.print("+++");
     if(decodeval ==0){
       decodeval =2;
@@ -325,7 +313,7 @@ void loop() {
 //      Serial.print(DisplayChar(decodeval)); //un-comment this line to print 18WPM code to serial port
       gotLtr = true;
     }
-    //Serial.println(decodeval);
+//    Serial.println(decodeval);
     decodeval =0;
     ltrCnt=0;
   }
@@ -353,21 +341,16 @@ void loop() {
 //  Serial.println(totSlope);
 ////  Serial.print("\t");
 ////  Serial.print(avgHighVal);//
+
    Serial.write(255); // send a start byte
-   Serial.write(fft_log_out, FFT_N); // send out the data
+   Serial.write(fft_log_out, halfSmplCnt); // send out the data
  }//end while
 }//end Loop
 
+
+/////////////////////////////////////////////////////////////////////////
 char* DisplayChar(int decodeval){
     char curChr = 0 ;
-//    for(int i=1; i< 3; i++) { 
-//        CodeValBuf[i-1] = CodeValBuf[i]; 
-//      }
-//      CodeValBuf[2] = 0;
-      
-//    if(decodeval ==2 || decodeval ==3) ++TEcnt;
-//    else TEcnt = 0;
-//    if(Test) Serial.println(decodeval);
     //clear buffer
     for( int i = 0; i < sizeof(Msgbuf);  ++i )
        Msgbuf[i] = 0;
