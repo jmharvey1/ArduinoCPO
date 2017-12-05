@@ -31,7 +31,7 @@ int halfSmplCnt;
 int longAvgLvl = 0;
 int hiTrgVal = 70;
 int loTrgVal = -70;
-int SqlchVal = 10;
+int SqlchVal = 15;
 int last[18];
 //int lastHigh =0;
 //int lastLow =0;
@@ -218,8 +218,8 @@ void loop() {
 //    else hiTrgVal = 32;
 //    if(avgLowVal < -25) loTrgVal = avgLowVal-20;
 //    else loTrgVal = -5;
-  hiTrgVal = 27;//32;
-  loTrgVal = -12;//-10
+//  hiTrgVal = 27;//32;
+  loTrgVal = -8;//-12;//-10
 ////////////////////////////////////////////////////////////
 
    if( curSigLvl>longAvgLvl+SqlchVal) armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
@@ -241,7 +241,7 @@ void loop() {
    if(armLo) toneDetect = false;
 //   else armLo = false;
 
-   if(armHi) toneDetect = true;
+   if(armHi) toneDetect = true;// by placing this line here, a High sig Lvl will overide a negative going slope
 //   else armHi = false;
 
     delayLine= delayLine<<1;
