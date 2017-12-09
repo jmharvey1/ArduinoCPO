@@ -21,18 +21,17 @@ visualizing the data.
 #define FFT_N 128     //128//256 // set to 256 point fft
 #define DataOutPin 11
 #define GainPin 9
+#define SlowData 6
 
 #include <FFT.h> // include the library
 int dblSmplCnt;
 int halfSmplCnt;
-//int avgLowVal =70;
-//int avgHighVal =-70;
-//int avgLvlVal = 0;
 int longAvgLvl = 0;
 int hiTrgVal = 70;
 int loTrgVal = -70;
-int SqlchVal = 9;
+int SqlchVal = 6;
 int last[18];
+int old[3];
 //int lastHigh =0;
 //int lastLow =0;
 int lastSlopeVal=0;
@@ -64,6 +63,8 @@ void setup() {
   //setup Digital signal output pin
   pinMode(DataOutPin, OUTPUT);
   digitalWrite(DataOutPin, HIGH);
+  pinMode(SlowData, INPUT_PULLUP);
+
   //setup Gain Control Pin
   pinMode(GainPin, OUTPUT);
   digitalWrite(GainPin, HIGH); //Max Gain 40 db (adafruit MAX9814)
@@ -168,23 +169,24 @@ void loop() {
     int oldLfreqVal=0;
     int oldMfreqVal=0;
     int oldHfreqVal=0;
-
+    int passBandNoise=0; 
     int noise = fft_log_out[6];//fft_log_out[12];
     //noise = (noise+ fft_log_out[10])/2;//(noise+ fft_log_out[13])/2;
     if(noise < fft_log_out[10]) noise = fft_log_out[10];
         
     for(int i = 0 ; i<sampleSize; ++i){
       curLfreqVal = curLfreqVal+last[i*3];
-      //Serial.print("; Cur:");
-      //Serial.print(last[i*3]);
-      //Serial.print("; Old:");
       curMfreqVal = curMfreqVal+last[(i*3)+1];
       curHfreqVal = curHfreqVal+last[(i*3)+2];
       oldLfreqVal = oldLfreqVal+last[(i*3)+oldOffSet];
-      //Serial.print(last[(i*3)+oldOffSet]);
       oldMfreqVal = oldMfreqVal+last[(i*3)+oldOffSet+1];
       oldHfreqVal = oldHfreqVal+last[(i*3)+oldOffSet+2];
     }
+//    passBandNoise = ((last[0]- last[3])+(last[1]- last[4])+(last[2]- last[5]))/3;
+//    passBandNoise = (((last[0]- old[0])+(last[1]- old[1])+(last[2]- old[2]))/3)+128;
+//    old[0] = last[0];
+//    old[1] = last[1];
+//    old[2] = last[2];
     //    Serial.println("");
     curLfreqVal = curLfreqVal/sampleSize;
     curMfreqVal = curMfreqVal/sampleSize;
@@ -205,10 +207,10 @@ void loop() {
 //    if(totSlope>0) avgHighVal = (5*avgHighVal+totSlope)/6;
 //    else avgLowVal = (5*avgLowVal+totSlope)/6;
     
-    int curSigLvl = (curLfreqVal+curMfreqVal+curHfreqVal)/3;
+    int curSigLvl = curMfreqVal;//(curLfreqVal+curMfreqVal+curHfreqVal)/3;
     if(noise> longAvgLvl) longAvgLvl = noise;
     else if(curSigLvl>SqlchVal+longAvgLvl){
-      longAvgLvl = curSigLvl-(SqlchVal+5);
+      longAvgLvl = curSigLvl-(SqlchVal+8);
     }
     else  longAvgLvl = (20*longAvgLvl-(noise/20))/20;//else longAvgLvl = (40*longAvgLvl+noise)/41;
 //    if(curSigLvl> avgLvlVal) avgLvlVal = curSigLvl; 
@@ -262,8 +264,10 @@ if( curSigLvl>longAvgLvl+SqlchVal){
 //    }
 
 //Use For Slow code [<27WPM] fill in the glitches
+ if(digitalRead(SlowData)){
     if(((delayLine ^ B00001110) == 4 )|| ((delayLine ^ B00001111) == 4)) delayLine |= B00000100;
     if(((delayLine ^ B00000001) == B00000100) || ((delayLine ^ B00000000) == B00000100)) delayLine &= B11111011;
+ }
       
   if(delayLine & B00001000){
      digitalWrite(DataOutPin, LOW);
@@ -275,8 +279,8 @@ if( curSigLvl>longAvgLvl+SqlchVal){
 //   
 //  if(totSlope<loTrgVal)armLo = true; //& curSigLvl<longAvgLvl+35
 //  else armLo = false;
-
-
+//  fft_log_out[halfSmplCnt-8]= 0;
+//  fft_log_out[halfSmplCnt-7]= passBandNoise;
   fft_log_out[halfSmplCnt-6]= 0; 
   fft_log_out[halfSmplCnt-5]= curSigLvl;
   fft_log_out[halfSmplCnt-4]= longAvgLvl+SqlchVal;
