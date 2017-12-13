@@ -13,7 +13,7 @@ visualizing the data.
  * Its purpose is to use the Micro as audio tone detector for CW signals 
  * the digital output of this sketch (SS Micro Digital Pin 11) is intended to act as an input  
  * to drive a companion Arduino CW decoder
- * In its present form, it optumized for tones around 600Hz.
+ * In its present form, it has been optimized for tones around 600Hz.
  */
 
 
@@ -28,8 +28,8 @@ int dblSmplCnt;
 int halfSmplCnt;
 int longAvgLvl = 0;
 int hiTrgVal = 70;
-int loTrgVal = -70;
-int SqlchVal = 6;
+int loTrgVal = -10;
+int SqlchVal = 9;
 int last[18];
 int old[3];
 //int lastHigh =0;
@@ -202,13 +202,14 @@ void loop() {
      
     int totSlope = (lSlope+mSlope+hSlope +lastSlopeVal)/3;
     lastSlopeVal = totSlope;
+    totSlope = -(abs(totSlope));
 //    if(totSlope>0) avgHighVal = (19*avgHighVal+totSlope)/20;
 //    else avgLowVal = (19*avgLowVal+totSlope)/20;
 //    if(totSlope>0) avgHighVal = (5*avgHighVal+totSlope)/6;
 //    else avgLowVal = (5*avgLowVal+totSlope)/6;
     
     int curSigLvl = curMfreqVal;//(curLfreqVal+curMfreqVal+curHfreqVal)/3;
-    if(noise> longAvgLvl) longAvgLvl = noise;
+    if(noise+(SqlchVal+10)> longAvgLvl) longAvgLvl = noise+(SqlchVal+10);
     else if(curSigLvl>SqlchVal+longAvgLvl){
       longAvgLvl = curSigLvl-(SqlchVal+8);
     }
@@ -222,7 +223,7 @@ void loop() {
 //    if(avgLowVal < -25) loTrgVal = avgLowVal-20;
 //    else loTrgVal = -5;
 //  hiTrgVal = 27;//32;
-  loTrgVal = -8;//-12;//-10
+//  loTrgVal = -10;//-8;//-12;//-10
 ////////////////////////////////////////////////////////////
 
 //   if( curSigLvl>longAvgLvl+SqlchVal) armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
@@ -230,14 +231,30 @@ void loop() {
 //   if(totSlope<loTrgVal)armLo = true; //& curSigLvl<longAvgLvl+35
 //   else armLo = false;
 
-if( curSigLvl>longAvgLvl+SqlchVal){
-    armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
-    armLo = false;
-   }
-   else{
-    armHi = false;
-    armLo = true;
-   }
+//if(armHi&&(( curSigLvl>longAvgLvl+SqlchVal)||(totSlope>loTrgVal) )){
+//  armLo = false;
+//}
+if(!armHi&&(( curSigLvl>longAvgLvl+SqlchVal)&&(totSlope<loTrgVal) )){
+  armHi = true;
+  armLo = false;
+}
+//if(armLo &&(( curSigLvl<longAvgLvl+SqlchVal)||(totSlope<loTrgVal) )){
+//  armHi = false;
+//}
+if(!armLo &&(( curSigLvl<longAvgLvl+SqlchVal)&&(totSlope<loTrgVal) )){
+  armHi = false;
+  armLo = true;
+}
+
+
+//if( curSigLvl>longAvgLvl+SqlchVal){
+//    armHi = true;
+//    armLo = false;
+//   }
+//   else{
+//    armHi = false;
+//    armLo = true;
+//   }
 
 
 
