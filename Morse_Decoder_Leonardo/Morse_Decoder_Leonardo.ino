@@ -1,4 +1,4 @@
-
+/* Rev: 2018-02-13 */
 /*  
  *   The TFTLCD library comes from here:  https://github.com/prenticedavid/MCUFRIEND_kbv    
  *    note: after inporting the above library using the ide add zip library menu option, remane the folder to remover the word "master"
@@ -88,6 +88,7 @@ char Msgbuf[32];
 char TxtMsg[] = {'T','H','A','N','K',' ','Y','O','U',' ','F','O','R',' ','S','U','B','S','C','R','I','B','I','N','G','!','\n'};
 int statsMode =0;
 bool chkStatsMode = true;
+bool BugMode = false;
 char TxtMsg1[] = {"1 2 3 4 5 6 7 8 9 10 11\n"};
 char TxtMsg2[] = {"This is my 3rd Message\n"};
 int msgcntr =0;
@@ -145,7 +146,7 @@ char morseTbl[]={
 
 // Install the interrupt routine.
 void KeyEvntSR() {
-  
+  chkChrCmplt();
   if(digitalRead(interruptPin)== LOW) { //key-down
     start = millis();
     letterBrk = 0;
@@ -188,6 +189,7 @@ void KeyEvntSR() {
       else space= avgDit;
       
       letterBrk = (5*space/3) + noSigStrt;//letterBrk = (5*avgDit/3) + noSigStrt;//letterBrk = (5*avgDeadSpace/3) + noSigStrt;//2*avgDit + noSigStrt;;//letterBrk = 
+      
       start =0;  
     }
     
@@ -207,6 +209,7 @@ void KeyEvntSR() {
     if(period >=1.5*avgDit){    // it smells like a "Dah".
        if(period >= lastDah/2){
          DeCodeVal =DeCodeVal+1;// it appears to be a "dah' so set the least significant bit to "one"
+         if(BugMode) letterBrk = letterBrk + 0.8*avgDit ;
          lastDah = period;
          CalcAvgDah(lastDah);  // Normal pathway to detect a Dah/Dash
        }
@@ -244,7 +247,7 @@ void KeyEvntSR() {
    }
    else{
     // if here, this was an atypical event, & may indicate a need to recalculate the average period.
-    if(period >0){//this is to correct for when the wpm speed as been slow & now needs to speed by a significant amount
+    if(period >0){//this too is correct for when the wpm speed as been slow & now needs to speed by a significant amount
       ++badKeyEvnt;
       if(badKeyEvnt >=20){
         period = CalcAvgPrd(period);
@@ -550,8 +553,8 @@ void DisplayChar(int decodeval){
    }
    wpm = CalcWPM(avgDah/3);
    if(wpm != 1){//if(wpm != lastWPM & decodeval == 0 & wpm <36){//wpm != lastWPM
-    lastWPM = wpm;
-    showSpeed();
+    //lastWPM = wpm;
+    if(curChr !=' ') showSpeed();
     if(TEcnt> 7 &  curRatio > 4.5){ // if true, we probably not waiting long enough to start the decode process, so reset the dot dash ratio based o current dash times
      avgDit = avgDah/3;   
     }

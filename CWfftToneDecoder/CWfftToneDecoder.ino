@@ -1,3 +1,4 @@
+/* Rev: 2018-02-13 */
 /*
 fft_adc.pde
 guest openmusiclabs.com 8.18.12
@@ -16,7 +17,13 @@ visualizing the data.
  * In its present form, it has been optimized for tones around 600Hz.
  */
 
-
+/*
+ * This version adds ASD1293 GRB LED Tuning indicator
+ * Ideally when the LED is Green, the FFT pass band is "centered" on the CW tone
+ * Conversely when the LED is Blue the CW tone is above the "Pass Band"
+ * or if the LED is Red the tone is below the "Pass Band"
+ * As wired in this version of the sketch. the ADS1293 input pin is connected to the Micro's Digital pin 14.
+ */
 #define LOG_OUT 1 // use the log output function
 #define FFT_N 128     //128//256 // set to 256 point fft
 #define DataOutPin 11
@@ -24,9 +31,22 @@ visualizing the data.
 #define SlowData 6
 
 #include <FFT.h> // include the library
+
+#include <Adafruit_NeoPixel.h>
+#define PIN 14
+
+Adafruit_NeoPixel strip = Adafruit_NeoPixel(1, PIN, NEO_GRB + NEO_KHZ800);
+byte RED =0;
+byte GREEN = 0;
+byte BLUE =0;
+int CntrFrqBin = 10;// ~700 Hz
+int FrqHi = 0;
+int FrqLo = 0;
+int FrqOk = 0;
+unsigned long pause =0;
 int dblSmplCnt;
 int halfSmplCnt;
-int longAvgLvl = 0;
+unsigned long longAvgLvl = 0;
 int hiTrgVal = 70;
 int loTrgVal = -10;
 int SqlchVal = 9;
@@ -76,6 +96,7 @@ void setup() {
     //last[i+10] = 10;
   }
   Serial.begin(115200); // use the serial port
+  strip.begin();
   TIMSK0 = 0; // turn off timer0 for lower jitter
   ADCSRA = B00000000;// disable Adc in order to configure it
 //%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -160,9 +181,13 @@ void loop() {
     for(int i = 0 ; i<15; ++i){//shift old data one level down
       last[17-i] = last[14-i];
     }
-    last[0] = fft_log_out[7];
-    last[1] = fft_log_out[8];
-    last[2] = fft_log_out[9];
+    
+//    last[0] = fft_log_out[7];
+//    last[1] = fft_log_out[8];
+//    last[2] = fft_log_out[9];
+    last[0] = fft_log_out[CntrFrqBin-1];
+    last[1] = fft_log_out[CntrFrqBin];
+    last[2] = fft_log_out[CntrFrqBin+1];
     int curLfreqVal=0;
     int curMfreqVal=0;
     int curHfreqVal=0;
@@ -170,9 +195,8 @@ void loop() {
     int oldMfreqVal=0;
     int oldHfreqVal=0;
     int passBandNoise=0; 
-    int noise = fft_log_out[6];//fft_log_out[12];
-    //noise = (noise+ fft_log_out[10])/2;//(noise+ fft_log_out[13])/2;
-    if(noise < fft_log_out[10]) noise = fft_log_out[10];
+    int noise = fft_log_out[CntrFrqBin-2];//fft_log_out[12];//int noise = fft_log_out[6];//fft_log_out[12];
+    if(noise < fft_log_out[CntrFrqBin+2]) noise = fft_log_out[CntrFrqBin+2];//if(noise < fft_log_out[10]) noise = fft_log_out[10];
         
     for(int i = 0 ; i<sampleSize; ++i){
       curLfreqVal = curLfreqVal+last[i*3];
@@ -203,27 +227,15 @@ void loop() {
     int totSlope = (lSlope+mSlope+hSlope +lastSlopeVal)/3;
     lastSlopeVal = totSlope;
     totSlope = -(abs(totSlope));
-//    if(totSlope>0) avgHighVal = (19*avgHighVal+totSlope)/20;
-//    else avgLowVal = (19*avgLowVal+totSlope)/20;
-//    if(totSlope>0) avgHighVal = (5*avgHighVal+totSlope)/6;
-//    else avgLowVal = (5*avgLowVal+totSlope)/6;
     
     int curSigLvl = curMfreqVal;//(curLfreqVal+curMfreqVal+curHfreqVal)/3;
-    if(noise+(SqlchVal+10)> longAvgLvl) longAvgLvl = noise+(SqlchVal+10);
-    else if(curSigLvl>SqlchVal+longAvgLvl){
+    //noise = noise-10;
+    if((noise+(SqlchVal+10)> longAvgLvl) && noise <100) longAvgLvl = noise+(SqlchVal+10);
+    if(curSigLvl>  noise+10 && (curSigLvl-(SqlchVal+8)>longAvgLvl)){//if(curSigLvl>SqlchVal+longAvgLvl){
       longAvgLvl = curSigLvl-(SqlchVal+8);
     }
-    else  longAvgLvl = (20*longAvgLvl-(noise/20))/20;//else longAvgLvl = (40*longAvgLvl+noise)/41;
-//    if(curSigLvl> avgLvlVal) avgLvlVal = curSigLvl; 
-//    else avgLvlVal = (3*avgLvlVal+curSigLvl )/4;
-    //avgLvlVal = (7*avgLvlVal+curSigLvl+curSigLvl )/8;
-  
-//    if(avgHighVal > 50) hiTrgVal = avgHighVal-15;
-//    else hiTrgVal = 32;
-//    if(avgLowVal < -25) loTrgVal = avgLowVal-20;
-//    else loTrgVal = -5;
-//  hiTrgVal = 27;//32;
-//  loTrgVal = -10;//-8;//-12;//-10
+    //else if(longAvgLvl < noise+(SqlchVal+10))longAvgLvl = noise+(SqlchVal+10);;
+    longAvgLvl = (30*longAvgLvl-1)/30;//(30*longAvgLvl-(noise/30))/30;//else longAvgLvl = (40*longAvgLvl+noise)/41;
 ////////////////////////////////////////////////////////////
 
 //   if( curSigLvl>longAvgLvl+SqlchVal) armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
@@ -237,32 +249,21 @@ void loop() {
 if(!armHi&&(( curSigLvl>longAvgLvl+SqlchVal)&&(totSlope<loTrgVal) )){
   armHi = true;
   armLo = false;
+  toneDetect = true;
 }
-//if(armLo &&(( curSigLvl<longAvgLvl+SqlchVal)||(totSlope<loTrgVal) )){
-//  armHi = false;
-//}
 if(!armLo &&(( curSigLvl<longAvgLvl+SqlchVal)&&(totSlope<loTrgVal) )){
   armHi = false;
   armLo = true;
+  toneDetect = false;
 }
 
 
-//if( curSigLvl>longAvgLvl+SqlchVal){
-//    armHi = true;
-//    armLo = false;
-//   }
-//   else{
-//    armHi = false;
-//    armLo = true;
-//   }
 
 
 
-   if(armLo) toneDetect = false;
-//   else armLo = false;
-
-   if(armHi) toneDetect = true;// by placing this line here, a High sig Lvl will overide a negative going slope
-//   else armHi = false;
+//   if(armLo) toneDetect = false;
+//
+//   if(armHi) toneDetect = true;// by placing this line here, a High sig Lvl will overide a negative going slope
 
     delayLine= delayLine<<1;
     delayLine &= B00001110;
@@ -288,9 +289,74 @@ if(!armLo &&(( curSigLvl<longAvgLvl+SqlchVal)&&(totSlope<loTrgVal) )){
       
   if(delayLine & B00001000){
      digitalWrite(DataOutPin, LOW);
-  }else{
+     pause =25;
+     if(abs(last[0] - last[2]) < 8 ){
+      FrqOk++;
+      if(FrqOk>4){
+        FrqOk = 4;
+        FrqHi = 0;
+        FrqLo = 0;
+        GREEN = longAvgLvl;//longAvgLvl+SqlchVal;//100;
+        BLUE = 0;
+        RED = 0;
+       }
+     }
+     else{
+        
+       if((last[0] - last[2])> 8 ){
+        FrqLo++;
+        if(FrqLo>4){
+          FrqLo = 4;
+          FrqHi = 0;
+          FrqOk = 0;
+          RED = longAvgLvl;//longAvgLvl+SqlchVal;//100;
+          BLUE = 0;
+          GREEN = 0;
+        }
+       }
+       if((last[2] - last[0])> 8 ){
+        FrqHi++;
+        if(FrqHi>4){
+          FrqHi = 4;
+          FrqLo = 0;
+          FrqOk = 0;
+          BLUE = longAvgLvl;//longAvgLvl+SqlchVal;//100;
+          RED = 0;
+          GREEN = 0;
+        }
+       }
+     }
+  }else{ //No Tone Detected
      digitalWrite(DataOutPin, HIGH);
-   }
+     if(longAvgLvl+SqlchVal>90){ //Show Out of Band Freq after No valid signal interval [pause]
+      if(pause>0){
+         pause--;
+      }
+      else{
+        BLUE = 0;
+        RED = 0;
+        GREEN = 0;   
+
+       if(last[0] - last[2] > 8 ){
+          RED = 20;
+          BLUE = 0;
+          GREEN = 0;
+         }
+         if((last[2] - last[0])> 8 ){
+          BLUE = 20;
+          RED = 0;
+          GREEN = 0;
+         }
+      } 
+    }
+    else{
+      BLUE = 0;
+      RED = 0;
+      GREEN = 0;
+    }
+  }
+  strip.setPixelColor(0,strip.Color(GREEN, RED, BLUE)); // set color of ASD 1293 LED to Green
+  strip.show(); 
 //  if( curSigLvl>longAvgLvl+SqlchVal) armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
 //  else armHi = false;
 //   
