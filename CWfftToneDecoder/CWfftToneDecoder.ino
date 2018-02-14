@@ -1,4 +1,4 @@
-/* Rev: 2018-02-13 */
+/* Rev: 2018-02-14 */
 /*
 fft_adc.pde
 guest openmusiclabs.com 8.18.12
@@ -14,8 +14,12 @@ visualizing the data.
  * Its purpose is to use the Micro as audio tone detector for CW signals 
  * the digital output of this sketch (SS Micro Digital Pin 11) is intended to act as an input  
  * to drive a companion Arduino CW decoder
- * In its present form, it has been optimized for tones around 600Hz.
+ * 
  */
+
+ /*
+  * See comment linked to the "SlowData" variable for fast CW transmissions
+  */
 
 /*
  * This version adds ASD1293 GRB LED Tuning indicator
@@ -23,12 +27,22 @@ visualizing the data.
  * Conversely when the LED is Blue the CW tone is above the "Pass Band"
  * or if the LED is Red the tone is below the "Pass Band"
  * As wired in this version of the sketch. the ADS1293 input pin is connected to the Micro's Digital pin 14.
+ * Note to use this LED you will need to include the Adafruit_NeoPixel library. Intrustions for installing it can be found at  
+ * https://learn.adafruit.com/adafruit-neopixel-uberguide/arduino-library-installation
  */
+/* 
+ * In its current form, this sketch is setup to caputure Audio tones @ ~700Hz. 
+ * If a another freq is perferred, change the value assigned to the "CntrFrqBin" variable.
+ * Note: You can use the "fft_adc.pde" Processing sketch [included in this set of Github files]
+ * to determine the fft bin (array entry) that represents the frequencies needed. 
+ */
+ 
 #define LOG_OUT 1 // use the log output function
 #define FFT_N 128     //128//256 // set to 256 point fft
 #define DataOutPin 11
 #define GainPin 9
-#define SlowData 6
+#define SlowData 6 // Manually Ground this Digital pin when when the incoming CW transmission is >30WPM  
+                   // When this pin is left open, slower code transmissions should work, & noise immunity will be better
 
 #include <FFT.h> // include the library
 
@@ -47,6 +61,7 @@ unsigned long pause =0;
 int dblSmplCnt;
 int halfSmplCnt;
 unsigned long longAvgLvl = 0;
+unsigned long NoiseAvgLvl = 40;
 int hiTrgVal = 70;
 int loTrgVal = -10;
 int SqlchVal = 9;
@@ -229,41 +244,36 @@ void loop() {
     totSlope = -(abs(totSlope));
     
     int curSigLvl = curMfreqVal;//(curLfreqVal+curMfreqVal+curHfreqVal)/3;
-    //noise = noise-10;
-    if((noise+(SqlchVal+10)> longAvgLvl) && noise <100) longAvgLvl = noise+(SqlchVal+10);
-    if(curSigLvl>  noise+10 && (curSigLvl-(SqlchVal+8)>longAvgLvl)){//if(curSigLvl>SqlchVal+longAvgLvl){
-      longAvgLvl = curSigLvl-(SqlchVal+8);
-    }
+    //if((noise+(SqlchVal+10)> longAvgLvl) && noise <100) longAvgLvl = noise+(SqlchVal+10);
+    
+//    if((noise+(SqlchVal+10)> longAvgLvl) && noise < NoiseAvgLvl+30) longAvgLvl = noise+(SqlchVal+10);
+//    
+//    if(curSigLvl>  noise+10 && (curSigLvl-(SqlchVal+8)>longAvgLvl)){  //if(curSigLvl>SqlchVal+longAvgLvl){
+//      longAvgLvl = curSigLvl-(SqlchVal+8);
+//    }
+    
     //else if(longAvgLvl < noise+(SqlchVal+10))longAvgLvl = noise+(SqlchVal+10);;
-    longAvgLvl = (30*longAvgLvl-1)/30;//(30*longAvgLvl-(noise/30))/30;//else longAvgLvl = (40*longAvgLvl+noise)/41;
+//    longAvgLvl = (30*longAvgLvl-1)/30;//(30*longAvgLvl-(noise/30))/30;//else longAvgLvl = (40*longAvgLvl+noise)/41;
+    if(curSigLvl>longAvgLvl) longAvgLvl = ((5*longAvgLvl)+curSigLvl)/6;
+    else longAvgLvl = ((30*longAvgLvl)-3)/30;
+    SqlchVal = 30-int((curSigLvl-noise)/2)+(int(3*NoiseAvgLvl/4)+int((longAvgLvl/2)));
+    if(SqlchVal/2 > NoiseAvgLvl) NoiseAvgLvl = SqlchVal/2;
 ////////////////////////////////////////////////////////////
 
-//   if( curSigLvl>longAvgLvl+SqlchVal) armHi = true;//if(totSlope>hiTrgVal || avgLvlVal>longAvgLvl+36)armHi = true;
-//   else armHi = false;
-//   if(totSlope<loTrgVal)armLo = true; //& curSigLvl<longAvgLvl+35
-//   else armLo = false;
-
-//if(armHi&&(( curSigLvl>longAvgLvl+SqlchVal)||(totSlope>loTrgVal) )){
-//  armLo = false;
-//}
-if(!armHi&&(( curSigLvl>longAvgLvl+SqlchVal)&&(totSlope<loTrgVal) )){
+if(!armHi&&( curSigLvl>SqlchVal)){ //+50
+//if(!armHi&&(( curSigLvl>longAvgLvl+SqlchVal)&&(totSlope<loTrgVal) )){
   armHi = true;
   armLo = false;
   toneDetect = true;
 }
-if(!armLo &&(( curSigLvl<longAvgLvl+SqlchVal)&&(totSlope<loTrgVal) )){
+if(!armLo &&( curSigLvl<SqlchVal)){ //+50
+//if(!armLo &&(( curSigLvl<longAvgLvl+SqlchVal)&&(totSlope<loTrgVal) )){
   armHi = false;
   armLo = true;
   toneDetect = false;
 }
+    NoiseAvgLvl = (30*NoiseAvgLvl +noise)/31;
 
-
-
-
-
-//   if(armLo) toneDetect = false;
-//
-//   if(armHi) toneDetect = true;// by placing this line here, a High sig Lvl will overide a negative going slope
 
     delayLine= delayLine<<1;
     delayLine &= B00001110;
@@ -328,7 +338,7 @@ if(!armLo &&(( curSigLvl<longAvgLvl+SqlchVal)&&(totSlope<loTrgVal) )){
      }
   }else{ //No Tone Detected
      digitalWrite(DataOutPin, HIGH);
-     if(longAvgLvl+SqlchVal>90){ //Show Out of Band Freq after No valid signal interval [pause]
+     if(NoiseAvgLvl+30>80){ //Show Out of Band Freq after No valid signal interval [pause]
       if(pause>0){
          pause--;
       }
@@ -338,12 +348,12 @@ if(!armLo &&(( curSigLvl<longAvgLvl+SqlchVal)&&(totSlope<loTrgVal) )){
         GREEN = 0;   
 
        if(last[0] - last[2] > 8 ){
-          RED = 20;
+          RED = NoiseAvgLvl-30;//20;
           BLUE = 0;
           GREEN = 0;
          }
          if((last[2] - last[0])> 8 ){
-          BLUE = 20;
+          BLUE = NoiseAvgLvl-30;//;
           RED = 0;
           GREEN = 0;
          }
@@ -366,10 +376,10 @@ if(!armLo &&(( curSigLvl<longAvgLvl+SqlchVal)&&(totSlope<loTrgVal) )){
 //  fft_log_out[halfSmplCnt-7]= passBandNoise;
   fft_log_out[halfSmplCnt-6]= 0; 
   fft_log_out[halfSmplCnt-5]= curSigLvl;
-  fft_log_out[halfSmplCnt-4]= longAvgLvl+SqlchVal;
+  fft_log_out[halfSmplCnt-4]= SqlchVal;//+50;//longAvgLvl+SqlchVal;
   fft_log_out[halfSmplCnt-3]= 0;//avgLowVal+128;
-  fft_log_out[halfSmplCnt-2]= loTrgVal+128;
-  fft_log_out[halfSmplCnt-1]= totSlope+128;
+  fft_log_out[halfSmplCnt-2]= NoiseAvgLvl+30;//loTrgVal+128;
+  fft_log_out[halfSmplCnt-1]= NoiseAvgLvl;//totSlope+128;
   if(toneDetect){
 //    Serial.print("+++");
     if(decodeval ==0){
